@@ -1,10 +1,3 @@
-"""
-Bill Tracker Updater
-====================
-Fetches new climate/energy bills from the Congress.gov API and appends them
-to the correct sheet (House or Senate) in your existing Excel tracker.
-"""
-
 import os
 import json
 import requests
@@ -14,10 +7,8 @@ from pathlib import Path
 from openpyxl import load_workbook
 from openpyxl.styles import Font, Alignment
 
-# ── Configuration ─────────────────────────────────────────────────────────────
-
 API_KEY        = os.getenv("CONGRESS_API_KEY", "")
-EXCEL_PATH     = Path("5_11_26_Climate_Tracker.xlsx")
+EXCEL_PATH     = Path("5_26_26_Climate_Tracker_.xlsx")
 STATE_FILE     = Path("bill_tracker_state.json")
 DAYS_TO_LOOK_BACK = 7
 
@@ -37,23 +28,19 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 log = logging.getLogger(__name__)
 
 
-# ── State Management ──────────────────────────────────────────────────────────
-
-def load_state() -> dict:
+def load_state():
     if STATE_FILE.exists():
         with open(STATE_FILE) as f:
             return json.load(f)
     return {"seen_ids": [], "last_run": None}
 
 
-def save_state(state: dict):
+def save_state(state):
     with open(STATE_FILE, "w") as f:
         json.dump(state, f, indent=2)
 
 
-# ── Congress.gov API ──────────────────────────────────────────────────────────
-
-def fetch_bills(from_date: str, congress: int = 119) -> list:
+def fetch_bills(from_date, congress=119):
     url = f"{API_BASE}/bill/{congress}"
     params = {
         "api_key": API_KEY,
@@ -89,7 +76,7 @@ def fetch_bills(from_date: str, congress: int = 119) -> list:
     return bills
 
 
-def fetch_bill_detail(bill_type: str, bill_number: str, congress: int = 119) -> dict:
+def fetch_bill_detail(bill_type, bill_number, congress=119):
     url = f"{API_BASE}/bill/{congress}/{bill_type.lower()}/{bill_number}"
     try:
         resp = requests.get(url, params={"api_key": API_KEY, "format": "json"}, timeout=15)
@@ -100,7 +87,7 @@ def fetch_bill_detail(bill_type: str, bill_number: str, congress: int = 119) -> 
         return {}
 
 
-def fetch_cosponsors(bill_type: str, bill_number: str, congress: int = 119) -> list:
+def fetch_cosponsors(bill_type, bill_number, congress=119):
     url = f"{API_BASE}/bill/{congress}/{bill_type.lower()}/{bill_number}/cosponsors"
     try:
         resp = requests.get(url, params={"api_key": API_KEY, "format": "json"}, timeout=15)
@@ -108,12 +95,10 @@ def fetch_cosponsors(bill_type: str, bill_number: str, congress: int = 119) -> l
         return resp.json().get("cosponsors", [])
     except requests.RequestException as e:
         log.warning(f"Could not fetch cosponsors for {bill_type}{bill_number}: {e}")
-        return []
+        return {}
 
 
-# ── Data Formatting ───────────────────────────────────────────────────────────
-
-def is_climate_energy_bill(bill: dict) -> bool:
+def is_climate_energy_bill(bill):
     title = (bill.get("title") or "").lower()
     policy_area = (bill.get("policyArea", {}) or {}).get("name", "").lower()
     return any(kw in title or kw in policy_area for kw in KEYWORDS)
@@ -125,12 +110,12 @@ BILL_TYPE_MAP = {
 }
 
 
-def format_bill_number(bill_type: str, number: str) -> str:
+def format_bill_number(bill_type, number):
     prefix = BILL_TYPE_MAP.get(bill_type.upper(), bill_type + ".")
     return f"{prefix} {number}"
 
 
-def format_sponsor(sponsor: dict, is_senate: bool) -> str:
+def format_sponsor(sponsor, is_senate):
     if not sponsor:
         return ""
     full_name = sponsor.get("fullName") or f"{sponsor.get('firstName', '')} {sponsor.get('lastName', '')}".strip()
@@ -144,7 +129,7 @@ def format_sponsor(sponsor: dict, is_senate: bool) -> str:
     return f"{prefix} {full_name} ({suffix})"
 
 
-def format_date(date_str: str) -> str:
+def format_date(date_str):
     if not date_str:
         return ""
     try:
@@ -154,14 +139,14 @@ def format_date(date_str: str) -> str:
         return date_str
 
 
-def latest_action_text(detail: dict) -> str:
+def latest_action_text(detail):
     latest = detail.get("latestAction", {})
     text   = latest.get("text", "")
     date   = latest.get("actionDate", "")
     return f"{text} {date}".strip() if text else ""
 
 
-def count_cosponsors_by_party(cosponsors: list) -> tuple:
+def count_cosponsors_by_party(cosponsors):
     dem = rep = ind = 0
     for c in cosponsors:
         party = (c.get("party") or "").upper()
@@ -174,31 +159,29 @@ def count_cosponsors_by_party(cosponsors: list) -> tuple:
     return dem, rep, ind
 
 
-def determine_sheet(bill_type: str) -> str:
+def determine_sheet(bill_type):
     bt = bill_type.upper()
     if bt in ("S", "SRES", "SJRES", "SCONRES"):
         return SENATE_SHEET
     return HOUSE_SHEET
 
 
-# ── Excel Writing ─────────────────────────────────────────────────────────────
-
-def append_bill_row(ws, row_data: list):
+def append_bill_row(ws, row_data):
     new_row = ws.max_row + 1
     for col_idx, value in enumerate(row_data, start=1):
         cell           = ws.cell(row=new_row, column=col_idx, value=value)
         cell.font      = Font(name="Arial", size=10)
         cell.alignment = Alignment(wrap_text=True, vertical="top")
-    log.info(f"  → Appended: {row_data[0]} | {row_data[2]}")
+    log.info(f"  -> Appended: {row_data[0]} | {row_data[2]}")
 
 
-def update_excel(new_bills: list):
+def update_excel(new_bills):
     if not EXCEL_PATH.exists():
         log.error(f"Excel file not found: {EXCEL_PATH}")
         return
 
-    wb       = load_workbook(EXCEL_PATH)
-    house_ws = wb[HOUSE_SHEET]
+    wb        = load_workbook(EXCEL_PATH)
+    house_ws  = wb[HOUSE_SHEET]
     senate_ws = wb[SENATE_SHEET]
 
     for bill in new_bills:
@@ -220,9 +203,7 @@ def update_excel(new_bills: list):
     log.info(f"Saved {len(new_bills)} new bill(s) to {EXCEL_PATH}")
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
-
-def build_bill_record(bill: dict) -> dict:
+def build_bill_record(bill):
     bill_type   = bill.get("type", "")
     bill_number = str(bill.get("number", ""))
     congress    = bill.get("congress", 119)
@@ -277,13 +258,13 @@ def run():
         if not is_climate_energy_bill(bill):
             continue
 
-        log.info(f"Processing: {bill.get('type')} {bill.get('number')} — {bill.get('title', '')[:60]}")
+        log.info(f"Processing: {bill.get('type')} {bill.get('number')} - {bill.get('title', '')[:60]}")
         record = build_bill_record(bill)
         new_records.append(record)
         seen_ids.add(uid)
 
     if new_records:
-        log.info(f"\nFound {len(new_records)} new bill(s). Updating tracker...")
+        log.info(f"Found {len(new_records)} new bill(s). Updating tracker...")
         update_excel(new_records)
     else:
         log.info("No new climate/energy bills found since last run.")
