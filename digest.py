@@ -1,13 +1,14 @@
 import requests
 import smtplib
+import os
 from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 
-API_KEY = "ou8la59fO7gGLrk5kkIxGb71EpAkVCpEWvEMbtgL"
-KEYWORDS = ["the", "act"]
-SENDER_EMAIL = "updatedbilltracker@gmail.com"
-SENDER_PASSWORD = "tccm vytj egpa wulb"
-RECIPIENT_EMAIL = "updatedbilltracker@gmail.com"
+API_KEY = os.environ["CONGRESS_API_KEY"]
+KEYWORDS = ["climate", "housing", "student loan"]
+SENDER_EMAIL = os.environ["SENDER_EMAIL"]
+SENDER_PASSWORD = os.environ["SENDER_PASSWORD"]
+RECIPIENT_EMAIL = os.environ["RECIPIENT_EMAIL"]
 
 def fetch_recent_bills():
     yesterday = datetime.now(timezone.utc) - timedelta(days=1)
