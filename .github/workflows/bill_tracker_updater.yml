@@ -1,27 +1,27 @@
-name: Bill Tracker Updater
+import os
+import json
+import requests
+import logging
+from datetime import datetime, timedelta
+from pathlib import Path
+from openpyxl import load_workbook
+from openpyxl.styles import Font, Alignment
 
-on:
-  schedule:
-    - cron: '0 14 * * *'
-  workflow_dispatch:
+API_KEY        = os.getenv("CONGRESS_API_KEY", "")
+EXCEL_PATH     = Path("5_11_26_Climate_Tracker.xlsx")
+STATE_FILE     = Path("bill_tracker_state.json")
+DAYS_TO_LOOK_BACK = 7
 
-jobs:
-  update-tracker:
-    runs-on: ubuntu-latest
+API_BASE = "https://api.congress.gov/v3"
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+KEYWORDS = [
+    "climate", "energy", "clean air", "clean water", "emissions",
+    "renewable", "carbon", "fossil fuel", "electric", "solar", "wind",
+    "nuclear", "pipeline", "greenhouse", "EPA", "environmental",
+    "petroleum", "natural gas", "geothermal", "hydropower", "water",
+]
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+HOUSE_SHEET  = "House"
+SENATE_SHEET = "Senate"
 
-      - name: Install dependencies
-        run: pip install requests openpyxl python-dotenv
-
-      - name: Run bill tracker updater
-        env:
-          CONGRESS_API_KEY: ${{ secrets.CONGRESS_API_KEY }}
-        run: python bill_tracker_updater.py
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(me
