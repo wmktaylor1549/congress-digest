@@ -1,29 +1,16 @@
-name: Bill Tracker Updater
+"""
+Bill Tracker Updater
+====================
+Fetches new climate/energy bills from the Congress.gov API and appends them
+to the correct sheet (House or Senate) in your existing Excel tracker.
+"""
 
-on:
-  schedule:
-    - cron: '0 14 * * *'  # Runs every day at 9am EST (UTC-5)
-  workflow_dispatch:        # Allows you to run it manually too
-
-jobs:
-  update-tracker:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          pip install requests openpyxl python-dotenv
-
-      - name: Run bill tracker updater
-        env:
-          CONGRESS_API_KEY: ${{ secrets.CONGRESS_API_KEY }}
-        run: |
-          python bill_tracker_updater.py
+import os
+import json
+import requests
+import logging
+from datetime import datetime, timedelta
+from pathlib import Path
+from openpyxl import load_workbook
+from openpyxl.styles import Font, Alignment
+...
