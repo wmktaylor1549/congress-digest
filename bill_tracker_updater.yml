@@ -2,8 +2,8 @@ name: Bill Tracker Updater
 
 on:
   schedule:
-    - cron: '0 14 * * *'  # Runs every day at 9am EST (UTC-5)
-  workflow_dispatch:        # Allows you to run it manually too
+    - cron: '0 14 * * *'
+  workflow_dispatch:
 
 jobs:
   update-tracker:
@@ -19,11 +19,17 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: |
-          pip install requests openpyxl python-dotenv
+        run: pip install requests openpyxl python-dotenv
 
       - name: Run bill tracker updater
         env:
           CONGRESS_API_KEY: ${{ secrets.CONGRESS_API_KEY }}
+        run: python bill_tracker_updater.py
+
+      - name: Commit updated tracker
         run: |
-          python bill_tracker_updater.py
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add 5_11_26_Climate_Tracker.xlsx bill_tracker_state.json
+          git diff --staged --quiet || git commit -m "Auto-update bill tracker"
+          git push
