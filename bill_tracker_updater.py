@@ -1,5 +1,4 @@
-Here's the full script to paste in:
-python"""
+"""
 Bill Tracker Updater
 ====================
 Fetches new climate/energy bills from the Congress.gov API and appends them
