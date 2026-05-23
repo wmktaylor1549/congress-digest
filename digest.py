@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 
 API_KEY = os.environ["CONGRESS_API_KEY"]
-KEYWORDS = ["climate", "housing", "student loan"]
+KEYWORDS = ["artificial intelligence", "semiconductor", "semiconductors"]
 SENDER_EMAIL = os.environ["SENDER_EMAIL"]
 SENDER_PASSWORD = os.environ["SENDER_PASSWORD"]
 RECIPIENT_EMAIL = os.environ["RECIPIENT_EMAIL"]
