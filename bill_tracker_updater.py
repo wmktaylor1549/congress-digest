@@ -8,7 +8,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import Font, Alignment
 
 API_KEY        = os.getenv("CONGRESS_API_KEY", "")
-EXCEL_PATH     = Path("5_26_26_Climate_Tracker_.xlsx")
+EXCEL_PATH     = Path("5.26.26 Climate Tracker .xlsx")
 STATE_FILE     = Path("bill_tracker_state.json")
 DAYS_TO_LOOK_BACK = 7
 
