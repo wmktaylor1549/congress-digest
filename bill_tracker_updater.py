@@ -2,6 +2,7 @@ import os
 import json
 import requests
 import logging
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from openpyxl import load_workbook
@@ -56,6 +57,11 @@ def save_state(state):
 
 def normalize_bill_number(bn):
     return str(bn).strip().replace(" ", "").replace(".", "").upper()
+
+
+def extract_bill_num(bill_number):
+    match = re.search(r'\d+', str(bill_number))
+    return int(match.group()) if match else 0
 
 
 def get_existing_bill_numbers(ws):
@@ -187,7 +193,21 @@ def insert_bill_rows(ws, bills_to_insert):
     num_rows = len(bills_to_insert)
     if num_rows == 0:
         return
+
+    # Save all existing hyperlinks before inserting rows
+    existing_hyperlinks = {}
+    for row in ws.iter_rows(min_row=FIRST_DATA_ROW, max_row=ws.max_row):
+        for cell in row:
+            if cell.hyperlink:
+                existing_hyperlinks[(cell.row, cell.column)] = cell.hyperlink
+
     ws.insert_rows(FIRST_DATA_ROW, amount=num_rows)
+
+    # Restore hyperlinks shifted down by the insert
+    for (row, col), hyperlink in existing_hyperlinks.items():
+        ws.cell(row=row + num_rows, column=col).hyperlink = hyperlink
+
+    # Write new bill rows
     for i, bill in enumerate(bills_to_insert):
         row_idx  = FIRST_DATA_ROW + i
         row_data = [
@@ -215,7 +235,8 @@ def update_excel(new_bills):
     if not EXCEL_PATH.exists():
         log.error(f"Excel file not found: {EXCEL_PATH}")
         return
-    wb        = load_workbook(EXCEL_PATH)
+
+    wb        = load_workbook(EXCEL_PATH, keep_vba=True)
     house_ws  = wb[HOUSE_SHEET]
     senate_ws = wb[SENATE_SHEET]
 
@@ -233,8 +254,8 @@ def update_excel(new_bills):
         and normalize_bill_number(b["bill_number"]) not in existing_senate
     ]
 
-    house_bills  = sorted(house_bills,  key=lambda x: (x["intro_date"] or datetime.min, x["bill_number"]), reverse=True)
-    senate_bills = sorted(senate_bills, key=lambda x: (x["intro_date"] or datetime.min, x["bill_number"]), reverse=True)
+    house_bills  = sorted(house_bills,  key=lambda x: (x["intro_date"] or datetime.min, extract_bill_num(x["bill_number"])), reverse=True)
+    senate_bills = sorted(senate_bills, key=lambda x: (x["intro_date"] or datetime.min, extract_bill_num(x["bill_number"])), reverse=True)
 
     log.info(f"New House bills to insert: {len(house_bills)}")
     log.info(f"New Senate bills to insert: {len(senate_bills)}")
