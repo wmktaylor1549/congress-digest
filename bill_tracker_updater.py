@@ -243,7 +243,7 @@ def update_excel(new_bills):
     insert_bill_rows(senate_ws, senate_bills)
 
     wb.save(EXCEL_PATH)
-    log.info(f"Saved {len(house_bills) + len(senate_bills)} new bill(s) to {EXCEL_PATH}")
+    log.info(f"File saved. Size: {EXCEL_PATH.stat().st_size} bytes")
 
 
 def build_bill_record(bill, from_date):
