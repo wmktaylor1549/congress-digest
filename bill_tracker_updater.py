@@ -233,8 +233,8 @@ def update_excel(new_bills):
         and normalize_bill_number(b["bill_number"]) not in existing_senate
     ]
 
-    house_bills  = sorted(house_bills,  key=lambda x: x["intro_date"] or datetime.min, reverse=True)
-    senate_bills = sorted(senate_bills, key=lambda x: x["intro_date"] or datetime.min, reverse=True)
+    house_bills  = sorted(house_bills,  key=lambda x: (x["intro_date"] or datetime.min, x["bill_number"]), reverse=True)
+    senate_bills = sorted(senate_bills, key=lambda x: (x["intro_date"] or datetime.min, x["bill_number"]), reverse=True)
 
     log.info(f"New House bills to insert: {len(house_bills)}")
     log.info(f"New Senate bills to insert: {len(senate_bills)}")
