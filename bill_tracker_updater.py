@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from openpyxl import load_workbook
 from openpyxl.styles import Font, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
 
 API_KEY           = os.getenv("CONGRESS_API_KEY", "")
 EXCEL_PATH        = Path("5.26.26 Climate Tracker .xlsx")
@@ -39,7 +38,7 @@ THIN_BORDER = Border(
     bottom=Side(style="thin"),
 )
 
-HEADER_ROW = 5
+HEADER_ROW     = 5
 FIRST_DATA_ROW = 6
 
 
@@ -172,17 +171,14 @@ def determine_sheet(bill_type):
 
 
 def insert_bill_rows(ws, bills_to_insert):
-    """Insert new bill rows just below the header, newest first."""
     num_rows = len(bills_to_insert)
     if num_rows == 0:
         return
 
-    # Insert blank rows just below header
     ws.insert_rows(FIRST_DATA_ROW, amount=num_rows)
 
-    # Write bills newest first (already sorted newest first)
     for i, bill in enumerate(bills_to_insert):
-        row_idx = FIRST_DATA_ROW + i
+        row_idx  = FIRST_DATA_ROW + i
         row_data = [
             bill["bill_number"],
             bill["title"],
@@ -195,11 +191,17 @@ def insert_bill_rows(ws, bills_to_insert):
             bill["status"],
         ]
         for col_idx, value in enumerate(row_data, start=1):
-            cell           = ws.cell(row=row_idx, column=col_idx, value=value)
-            cell.font      = Font(name="Cambria", size=11)
-            cell.alignment = Alignment(wrap_text=True, vertical="center")
-            cell.border    = THIN_BORDER
-        log.info(f"  -> Inserted row {row_idx}: {row_data[0]} | {row_data[2]}")
+            cell        = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.font   = Font(name="Cambria", size=11)
+            cell.border = THIN_BORDER
+            cell.alignment = Alignment(
+                wrap_text=True,
+                vertical="center",
+                horizontal="center"
+            )
+            if col_idx == 3 and value is not None:
+                cell.number_format = "dddd, d. mmmm yyyy"
+        log.info(f"  -> Inserted: {row_data[0]} | {row_data[2]}")
 
 
 def update_excel(new_bills):
@@ -211,8 +213,7 @@ def update_excel(new_bills):
     house_ws  = wb[HOUSE_SHEET]
     senate_ws = wb[SENATE_SHEET]
 
-    # Sort newest first for each sheet
-    house_bills  = sorted(
+    house_bills = sorted(
         [b for b in new_bills if b["sheet"] == HOUSE_SHEET],
         key=lambda x: x["intro_date"] or datetime.min,
         reverse=True
