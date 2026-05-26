@@ -236,7 +236,7 @@ def update_excel(new_bills):
         log.error(f"Excel file not found: {EXCEL_PATH}")
         return
 
-    wb        = load_workbook(EXCEL_PATH, keep_vba=True)
+    wb        = load_workbook(EXCEL_PATH)
     house_ws  = wb[HOUSE_SHEET]
     senate_ws = wb[SENATE_SHEET]
 
