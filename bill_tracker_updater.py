@@ -54,6 +54,16 @@ def save_state(state):
         json.dump(state, f, indent=2)
 
 
+def get_existing_bill_numbers(ws):
+    """Read all bill numbers already in the sheet to prevent duplicates."""
+    existing = set()
+    for row in ws.iter_rows(min_row=FIRST_DATA_ROW, max_row=ws.max_row):
+        val = row[0].value
+        if val:
+            existing.add(str(val).strip().replace(" ", "").upper())
+    return existing
+
+
 def fetch_bills(from_date, congress=119):
     url = f"{API_BASE}/bill/{congress}"
     params = {
@@ -174,9 +184,7 @@ def insert_bill_rows(ws, bills_to_insert):
     num_rows = len(bills_to_insert)
     if num_rows == 0:
         return
-
     ws.insert_rows(FIRST_DATA_ROW, amount=num_rows)
-
     for i, bill in enumerate(bills_to_insert):
         row_idx  = FIRST_DATA_ROW + i
         row_data = [
@@ -191,14 +199,10 @@ def insert_bill_rows(ws, bills_to_insert):
             bill["status"],
         ]
         for col_idx, value in enumerate(row_data, start=1):
-            cell        = ws.cell(row=row_idx, column=col_idx, value=value)
-            cell.font   = Font(name="Cambria", size=11)
-            cell.border = THIN_BORDER
-            cell.alignment = Alignment(
-                wrap_text=True,
-                vertical="center",
-                horizontal="center"
-            )
+            cell           = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.font      = Font(name="Cambria", size=11)
+            cell.border    = THIN_BORDER
+            cell.alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
             if col_idx == 3 and value is not None:
                 cell.number_format = "dddd, d. mmmm yyyy"
         log.info(f"  -> Inserted: {row_data[0]} | {row_data[2]}")
@@ -208,27 +212,38 @@ def update_excel(new_bills):
     if not EXCEL_PATH.exists():
         log.error(f"Excel file not found: {EXCEL_PATH}")
         return
-
     wb        = load_workbook(EXCEL_PATH)
     house_ws  = wb[HOUSE_SHEET]
     senate_ws = wb[SENATE_SHEET]
 
-    house_bills = sorted(
-        [b for b in new_bills if b["sheet"] == HOUSE_SHEET],
-        key=lambda x: x["intro_date"] or datetime.min,
-        reverse=True
-    )
-    senate_bills = sorted(
-        [b for b in new_bills if b["sheet"] == SENATE_SHEET],
-        key=lambda x: x["intro_date"] or datetime.min,
-        reverse=True
-    )
+    # Read existing bill numbers from each sheet
+    existing_house  = get_existing_bill_numbers(house_ws)
+    existing_senate = get_existing_bill_numbers(senate_ws)
+
+    # Filter out any bills already in the sheet
+    house_bills = [
+        b for b in new_bills
+        if b["sheet"] == HOUSE_SHEET
+        and b["bill_number"].strip().replace(" ", "").upper() not in existing_house
+    ]
+    senate_bills = [
+        b for b in new_bills
+        if b["sheet"] == SENATE_SHEET
+        and b["bill_number"].strip().replace(" ", "").upper() not in existing_senate
+    ]
+
+    # Sort newest first
+    house_bills  = sorted(house_bills,  key=lambda x: x["intro_date"] or datetime.min, reverse=True)
+    senate_bills = sorted(senate_bills, key=lambda x: x["intro_date"] or datetime.min, reverse=True)
+
+    log.info(f"New House bills to insert: {len(house_bills)}")
+    log.info(f"New Senate bills to insert: {len(senate_bills)}")
 
     insert_bill_rows(house_ws, house_bills)
     insert_bill_rows(senate_ws, senate_bills)
 
     wb.save(EXCEL_PATH)
-    log.info(f"Saved {len(new_bills)} new bill(s) to {EXCEL_PATH}")
+    log.info(f"Saved {len(house_bills) + len(senate_bills)} new bill(s) to {EXCEL_PATH}")
 
 
 def build_bill_record(bill, from_date):
