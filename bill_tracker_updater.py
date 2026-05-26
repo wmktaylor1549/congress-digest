@@ -54,13 +54,16 @@ def save_state(state):
         json.dump(state, f, indent=2)
 
 
+def normalize_bill_number(bn):
+    return str(bn).strip().replace(" ", "").replace(".", "").upper()
+
+
 def get_existing_bill_numbers(ws):
-    """Read all bill numbers already in the sheet to prevent duplicates."""
     existing = set()
     for row in ws.iter_rows(min_row=FIRST_DATA_ROW, max_row=ws.max_row):
         val = row[0].value
         if val:
-            existing.add(str(val).strip().replace(" ", "").upper())
+            existing.add(normalize_bill_number(val))
     return existing
 
 
@@ -216,23 +219,20 @@ def update_excel(new_bills):
     house_ws  = wb[HOUSE_SHEET]
     senate_ws = wb[SENATE_SHEET]
 
-    # Read existing bill numbers from each sheet
     existing_house  = get_existing_bill_numbers(house_ws)
     existing_senate = get_existing_bill_numbers(senate_ws)
 
-    # Filter out any bills already in the sheet
     house_bills = [
         b for b in new_bills
         if b["sheet"] == HOUSE_SHEET
-        and b["bill_number"].strip().replace(" ", "").upper() not in existing_house
+        and normalize_bill_number(b["bill_number"]) not in existing_house
     ]
     senate_bills = [
         b for b in new_bills
         if b["sheet"] == SENATE_SHEET
-        and b["bill_number"].strip().replace(" ", "").upper() not in existing_senate
+        and normalize_bill_number(b["bill_number"]) not in existing_senate
     ]
 
-    # Sort newest first
     house_bills  = sorted(house_bills,  key=lambda x: x["intro_date"] or datetime.min, reverse=True)
     senate_bills = sorted(senate_bills, key=lambda x: x["intro_date"] or datetime.min, reverse=True)
 
