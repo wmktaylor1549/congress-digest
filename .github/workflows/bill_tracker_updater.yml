@@ -26,6 +26,13 @@ jobs:
           CONGRESS_API_KEY: ${{ secrets.CONGRESS_API_KEY }}
         run: python bill_tracker_updater.py
 
+      - name: Verify file was modified
+        run: |
+          echo "File size after update:"
+          ls -la "5.26.26 Climate Tracker v2.xlsx"
+          echo "Git status:"
+          git status
+
       - name: Commit updated tracker
         run: |
           git config --global user.name "github-actions"
