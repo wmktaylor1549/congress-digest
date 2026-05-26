@@ -5,7 +5,8 @@ import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 from openpyxl import load_workbook
-from openpyxl.styles import Font, Alignment
+from openpyxl.styles import Font, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
 API_KEY           = os.getenv("CONGRESS_API_KEY", "")
 EXCEL_PATH        = Path("5.26.26 Climate Tracker .xlsx")
@@ -30,6 +31,16 @@ BILL_TYPE_MAP = {
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 log = logging.getLogger(__name__)
+
+THIN_BORDER = Border(
+    left=Side(style="thin"),
+    right=Side(style="thin"),
+    top=Side(style="thin"),
+    bottom=Side(style="thin"),
+)
+
+HEADER_ROW = 5
+FIRST_DATA_ROW = 6
 
 
 def load_state():
@@ -106,31 +117,31 @@ def is_climate_energy_bill(bill):
 
 def format_bill_number(bill_type, number):
     prefix = BILL_TYPE_MAP.get(bill_type.upper(), bill_type + ".")
-    return f"{prefix} {number}"
+    return f"{prefix}{number}"
 
 
 def format_sponsor(sponsor, is_senate):
     if not sponsor:
         return ""
-    full_name = sponsor.get("fullName") or f"{sponsor.get('firstName', '')} {sponsor.get('lastName', '')}".strip()
-    party     = sponsor.get("party", "")
-    state     = sponsor.get("state", "")
-    district  = sponsor.get("district", "")
-    prefix    = "Sen." if is_senate else "Rep."
-    suffix    = f"{party}-{state}"
+    first    = sponsor.get("firstName", "")
+    last     = sponsor.get("lastName", "")
+    party    = sponsor.get("party", "")
+    state    = sponsor.get("state", "")
+    district = sponsor.get("district", "")
+    prefix   = "Sen." if is_senate else "Rep."
+    suffix   = f"{party}-{state}"
     if district:
         suffix += f"-{district}"
-    return f"{prefix} {full_name} ({suffix})"
+    return f"{prefix} {first} {last} ({suffix})"
 
 
 def format_date(date_str):
     if not date_str:
-        return ""
+        return None
     try:
-        dt = datetime.strptime(date_str[:10], "%Y-%m-%d")
-        return dt.strftime("%A, %B %-d. %Y")
+        return datetime.strptime(date_str[:10], "%Y-%m-%d")
     except ValueError:
-        return date_str
+        return None
 
 
 def latest_action_text(detail):
@@ -160,24 +171,18 @@ def determine_sheet(bill_type):
     return HOUSE_SHEET
 
 
-def append_bill_row(ws, row_data):
-    new_row = ws.max_row + 1
-    for col_idx, value in enumerate(row_data, start=1):
-        cell           = ws.cell(row=new_row, column=col_idx, value=value)
-        cell.font      = Font(name="Arial", size=10)
-        cell.alignment = Alignment(wrap_text=True, vertical="top")
-    log.info(f"  -> Appended: {row_data[0]} | {row_data[2]}")
-
-
-def update_excel(new_bills):
-    if not EXCEL_PATH.exists():
-        log.error(f"Excel file not found: {EXCEL_PATH}")
+def insert_bill_rows(ws, bills_to_insert):
+    """Insert new bill rows just below the header, newest first."""
+    num_rows = len(bills_to_insert)
+    if num_rows == 0:
         return
-    wb        = load_workbook(EXCEL_PATH)
-    house_ws  = wb[HOUSE_SHEET]
-    senate_ws = wb[SENATE_SHEET]
-    for bill in new_bills:
-        ws = house_ws if bill["sheet"] == HOUSE_SHEET else senate_ws
+
+    # Insert blank rows just below header
+    ws.insert_rows(FIRST_DATA_ROW, amount=num_rows)
+
+    # Write bills newest first (already sorted newest first)
+    for i, bill in enumerate(bills_to_insert):
+        row_idx = FIRST_DATA_ROW + i
         row_data = [
             bill["bill_number"],
             bill["title"],
@@ -189,7 +194,38 @@ def update_excel(new_bills):
             bill["ind_cosponsors"],
             bill["status"],
         ]
-        append_bill_row(ws, row_data)
+        for col_idx, value in enumerate(row_data, start=1):
+            cell           = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.font      = Font(name="Cambria", size=11)
+            cell.alignment = Alignment(wrap_text=True, vertical="center")
+            cell.border    = THIN_BORDER
+        log.info(f"  -> Inserted row {row_idx}: {row_data[0]} | {row_data[2]}")
+
+
+def update_excel(new_bills):
+    if not EXCEL_PATH.exists():
+        log.error(f"Excel file not found: {EXCEL_PATH}")
+        return
+
+    wb        = load_workbook(EXCEL_PATH)
+    house_ws  = wb[HOUSE_SHEET]
+    senate_ws = wb[SENATE_SHEET]
+
+    # Sort newest first for each sheet
+    house_bills  = sorted(
+        [b for b in new_bills if b["sheet"] == HOUSE_SHEET],
+        key=lambda x: x["intro_date"] or datetime.min,
+        reverse=True
+    )
+    senate_bills = sorted(
+        [b for b in new_bills if b["sheet"] == SENATE_SHEET],
+        key=lambda x: x["intro_date"] or datetime.min,
+        reverse=True
+    )
+
+    insert_bill_rows(house_ws, house_bills)
+    insert_bill_rows(senate_ws, senate_bills)
+
     wb.save(EXCEL_PATH)
     log.info(f"Saved {len(new_bills)} new bill(s) to {EXCEL_PATH}")
 
