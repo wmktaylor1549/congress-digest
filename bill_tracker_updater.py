@@ -8,7 +8,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import Font, Alignment, Border, Side
 
 API_KEY           = os.getenv("CONGRESS_API_KEY", "")
-EXCEL_PATH        = Path("5.26.26 Climate Tracker .xlsx")
+EXCEL_PATH        = Path("5.26.26 Climate Tracker v2.xlsx")
 STATE_FILE        = Path("bill_tracker_state.json")
 DAYS_TO_LOOK_BACK = 7
 API_BASE          = "https://api.congress.gov/v3"
