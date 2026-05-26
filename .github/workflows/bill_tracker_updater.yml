@@ -30,8 +30,8 @@ jobs:
         run: |
           echo "File size after update:"
           ls -la "5.26.26 Climate Tracker v2.xlsx"
-          echo "Git status:"
-          git status
+          echo "Git diff stat:"
+          git diff --stat
 
       - name: Commit updated tracker
         run: |
