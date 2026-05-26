@@ -30,6 +30,6 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git add "5.26.26 Climate Tracker .xlsx" bill_tracker_state.json
+          git add "5.26.26 Climate Tracker v2.xlsx" bill_tracker_state.json
           git diff --staged --quiet || git commit -m "Auto-update bill tracker"
           git push
